@@ -1,0 +1,14 @@
+# Secrets et configuration serveur
+server.cfg
+*.license
+license.dat
+.env
+
+# Base de données
+*.sql
+*.sql.gz
+*.db
+
+# Divers
+.DS_Store
+*.log
