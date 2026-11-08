@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Protocole Égide — Quarantaine RP</title>
+  <meta name="description" content="Protocole Égide — serveur FiveM whitelist. Six mois après la fuite de la Souche V-19, la région est sous quarantaine et loi martiale." />
+
+  <!-- Polices -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind + Lucide -->
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <script>
+    if (window.tailwind) tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            void: '#07080a',
+            coal: '#101215',
+            ash: '#1a1d22',
+            steel: '#9aa3ad',
+            hazard: '#f5c518',
+            amber: '#d99a00',
+            alert: '#e23b3b',
+            toxic: '#8bd450'
+          },
+          fontFamily: {
+            display: ['Orbitron', 'sans-serif'],
+            tactical: ['Rajdhani', 'sans-serif'],
+            body: ['"Space Grotesk"', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root { --hazard: #f5c518; --alert: #e23b3b; }
+    body { background: #07080a; color: #d6dbe0; font-family: 'Space Grotesk', sans-serif; overflow-x: hidden; }
+
+    /* Grain + scanlines */
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 60; opacity: .05;
+      background-image: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px);
+    }
+
+    /* Bandes de danger jaune/noir */
+    .hazard-stripes { background: repeating-linear-gradient(-45deg, #f5c518 0 14px, #0b0b0b 14px 28px); }
+    .hazard-tape { background: repeating-linear-gradient(-45deg, #f5c518 0 10px, #111 10px 20px); height: 6px; }
+
+    /* Coins coupés (style militaire) */
+    .cut { clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+    .cut-sm { clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+
+    /* Glassmorphisme */
+    .glass {
+      background: linear-gradient(145deg, rgba(30,33,38,.72), rgba(14,16,19,.82));
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(154,163,173,.16);
+    }
+    .glass-hz { border-color: rgba(245,197,24,.35); }
+
+    /* Titres métalliques */
+    .metal {
+      background: linear-gradient(180deg, #f1f3f5 0%, #9aa3ad 55%, #5d646c 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+
+    /* Barbelés (SVG en fond) */
+    .barbed {
+      height: 18px; opacity: .35;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='18'%3E%3Cpath d='M0 9h60' stroke='%239aa3ad' stroke-width='1.5'/%3E%3Cpath d='M22 3l16 12M38 3L22 15' stroke='%239aa3ad' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: repeat-x;
+    }
+
+    /* Apparition au scroll */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* Biohazard tournant */
+    @keyframes spin-slow { to { transform: rotate(360deg); } }
+    .spin-slow { animation: spin-slow 60s linear infinite; }
+
+    /* Point clignotant */
+    @keyframes blink { 50% { opacity: .2; } }
+    .blink { animation: blink 1.2s steps(2) infinite; }
+
+    /* Brume du hero */
+    @keyframes drift { 0% { transform: translateX(-10%); } 100% { transform: translateX(10%); } }
+    .fog { animation: drift 30s ease-in-out infinite alternate; }
+
+    /* Onglets / filtres actifs */
+    .tab-btn[aria-selected="true"], .filter-btn.active, .tl-node.active {
+      background: #f5c518; color: #0b0b0b; border-color: #f5c518;
+    }
+    .tl-node.active .tl-dot { background: #0b0b0b; }
+
+    /* Moniteur ECG */
+    @keyframes ecg { to { stroke-dashoffset: -600; } }
+    .ecg { stroke-dasharray: 300 300; animation: ecg 3s linear infinite; }
+
+    /* Zones de la carte */
+    .zone { transition: opacity .3s, filter .3s; opacity: .35; cursor: pointer; }
+    .zone.active, .zone:hover { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
+
+    input, select, textarea { background: rgba(7,8,10,.7); }
+    ::selection { background: #f5c518; color: #000; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .reveal { opacity: 1; transform: none; } }
+  </style>
+</head>
+
+<body class="antialiased">
+
+  <!-- ========== NAVBAR ========== -->
+  <header id="navbar" class="fixed top-0 inset-x-0 z-50 transition-all duration-300">
+    <div class="hazard-tape"></div>
+    <nav class="glass border-x-0 border-t-0">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <a href="#accueil" class="flex items-center gap-2 shrink-0">
+          <i data-lucide="biohazard" class="w-7 h-7 text-hazard"></i>
+          <span class="font-display font-900 tracking-widest text-sm sm:text-base metal">PROTOCOLE ÉGIDE</span>
+        </a>
+
+        <ul class="hidden lg:flex items-center gap-6 font-tactical font-semibold uppercase tracking-wider text-sm text-steel">
+          <li><a href="#lore" class="hover:text-hazard transition">Chronologie</a></li>
+          <li><a href="#carte" class="hover:text-hazard transition">Carte</a></li>
+          <li><a href="#sas" class="hover:text-hazard transition">Le Sas</a></li>
+          <li><a href="#factions" class="hover:text-hazard transition">Factions</a></li>
+          <li><a href="#reglement" class="hover:text-hazard transition">Règlement</a></li>
+          <li><a href="#dossier" class="hover:text-hazard transition">Whitelist</a></li>
+        </ul>
+
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 cut-sm bg-ash border border-white/10 font-tactical text-sm" title="Statut du serveur">
+            <span id="status-dot" class="w-2 h-2 rounded-full bg-toxic blink"></span>
+            <span id="status-label" class="text-steel uppercase tracking-wider">En ligne</span>
+            <span class="text-white font-bold"><span id="players-count">--</span>/<span id="players-max">128</span></span>
+          </div>
+          <a id="discord-btn" href="#" target="_blank" rel="noopener"
+             class="hidden sm:inline-flex items-center gap-2 px-4 py-2 cut-sm bg-hazard text-black font-tactical font-bold uppercase tracking-wider text-sm hover:bg-white transition">
+            <i data-lucide="radio" class="w-4 h-4"></i> Discord
+          </a>
+          <button id="menu-btn" class="lg:hidden p-2 text-steel hover:text-hazard" aria-label="Ouvrir le menu" aria-expanded="false">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Menu mobile -->
+      <div id="mobile-menu" class="lg:hidden hidden border-t border-white/10 px-4 pb-4">
+        <ul class="flex flex-col gap-1 pt-3 font-tactical font-semibold uppercase tracking-wider text-steel">
+          <li><a href="#lore" class="block py-2 hover:text-hazard">Chronologie</a></li>
+          <li><a href="#carte" class="block py-2 hover:text-hazard">Carte</a></li>
+          <li><a href="#sas" class="block py-2 hover:text-hazard">Le Sas</a></li>
+          <li><a href="#factions" class="block py-2 hover:text-hazard">Factions</a></li>
+          <li><a href="#reglement" class="block py-2 hover:text-hazard">Règlement</a></li>
+          <li><a href="#dossier" class="block py-2 hover:text-hazard">Whitelist</a></li>
+        </ul>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-white/10 font-tactical text-sm">
+          <span class="flex items-center gap-2 text-steel"><span class="w-2 h-2 rounded-full bg-toxic blink"></span><span class="players-mobile">--</span> joueurs</span>
+          <a href="#" class="discord-link inline-flex items-center gap-2 px-4 py-2 cut-sm bg-hazard text-black font-bold uppercase"><i data-lucide="radio" class="w-4 h-4"></i> Discord</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- ========== HERO ========== -->
+  <section id="accueil" class="relative min-h-screen flex items-center pt-24 pb-16 overflow-hidden">
+    <!-- Fond -->
+    <div class="absolute inset-0 bg-gradient-to-b from-[#111418] via-void to-void"></div>
+    <div class="absolute inset-0 opacity-[.07]" style="background-image:linear-gradient(#9aa3ad 1px,transparent 1px),linear-gradient(90deg,#9aa3ad 1px,transparent 1px);background-size:48px 48px"></div>
+    <div class="fog absolute -inset-x-1/4 bottom-0 h-2/3 bg-gradient-to-t from-white/10 via-white/[.04] to-transparent blur-2xl"></div>
+
+    <!-- Biohazard géant -->
+    <i data-lucide="biohazard" class="spin-slow absolute -right-24 top-1/2 -translate-y-1/2 w-[520px] h-[520px] text-hazard/[.06] hidden md:block" stroke-width="0.6"></i>
+
+    <!-- Mirador stylisé -->
+    <svg class="absolute left-4 bottom-0 w-40 sm:w-56 text-steel/20 hidden sm:block" viewBox="0 0 120 200" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M30 200 L45 70 M90 200 L75 70 M38 140 H82 M42 105 H78 M36 140 L78 105 M84 140 L42 105"/>
+      <rect x="35" y="45" width="50" height="25"/><path d="M30 45 L60 25 L90 45 Z"/>
+      <path d="M60 25 L60 10"/><path d="M85 55 L118 40" stroke="#f5c518" stroke-opacity=".5"/>
+    </svg>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 w-full">
+      <div class="max-w-3xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 mb-6 cut-sm bg-alert/15 border border-alert/50 text-alert font-tactical font-bold uppercase tracking-[.2em] text-xs">
+          <span class="w-2 h-2 rounded-full bg-alert blink"></span> Alerte sanitaire niveau 4 — Loi martiale
+        </div>
+
+        <h1 class="font-display font-black leading-[.95] text-5xl sm:text-7xl lg:text-8xl tracking-tight">
+          <span class="metal block">PROTOCOLE</span>
+          <span class="block text-hazard">ÉGIDE</span>
+        </h1>
+        <p class="mt-3 font-tactical text-lg sm:text-xl uppercase tracking-[.35em] text-steel">Quarantaine RP · Serveur Whitelist</p>
+
+        <p class="mt-8 text-base sm:text-lg text-steel/90 leading-relaxed max-w-2xl">
+          Six mois se sont écoulés depuis la fuite de la <strong class="text-white">Souche V-19</strong> — « <em class="text-hazard not-italic">La Brume Blanche</em> » — au complexe
+          <strong class="text-white">Humane Labs</strong>. La région est placée sous <strong class="text-white">quarantaine stricte</strong>. Couvre-feu, contrôles, rationnement.
+          Ici, chaque toux est suspecte et chaque dose d'Inhibiteur vaut plus qu'une vie.
+        </p>
+
+        <div class="mt-10 flex flex-col sm:flex-row gap-4">
+          <a href="#dossier" class="group inline-flex items-center justify-center gap-3 px-7 py-4 cut bg-hazard text-black font-tactical font-bold uppercase tracking-wider hover:bg-white transition">
+            <i data-lucide="file-badge" class="w-5 h-5"></i> Déposer un Dossier de Transit
+          </a>
+          <a href="#carte" class="inline-flex items-center justify-center gap-3 px-7 py-4 cut glass glass-hz text-hazard font-tactical font-bold uppercase tracking-wider hover:bg-hazard/10 transition">
+            <i data-lucide="map" class="w-5 h-5"></i> Explorer la Carte Géopolitique
+          </a>
+        </div>
+
+        <dl class="mt-14 grid grid-cols-3 gap-4 max-w-xl">
+          <div class="glass cut-sm p-4">
+            <dt class="font-tactical uppercase tracking-wider text-xs text-steel">Jour de crise</dt>
+            <dd class="font-display text-2xl text-white mt-1">J+<span id="day-count">182</span></dd>
+          </div>
+          <div class="glass cut-sm p-4">
+            <dt class="font-tactical uppercase tracking-wider text-xs text-steel">Zones rouges</dt>
+            <dd class="font-display text-2xl text-alert mt-1">07</dd>
+          </div>
+          <div class="glass cut-sm p-4">
+            <dt class="font-tactical uppercase tracking-wider text-xs text-steel">Stock IB</dt>
+            <dd class="font-display text-2xl text-hazard mt-1">14%</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <a href="#lore" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-steel hover:text-hazard animate-bounce" aria-label="Descendre">
+      <i data-lucide="chevrons-down" class="w-7 h-7"></i>
+    </a>
+  </section>
+
+  <div class="barbed"></div>
+
+  <!-- ========== LORE & CHRONOLOGIE ========== -->
+  <section id="lore" class="relative py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <header class="reveal mb-14">
+        <p class="font-tactical text-hazard uppercase tracking-[.3em] text-sm">// Archives déclassifiées</p>
+        <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Chronologie de la crise</h2>
+        <p class="mt-4 text-steel max-w-2xl">Du premier signal d'alarme au lazaret de Cayo Perico. Sélectionnez une date pour ouvrir le rapport.</p>
+      </header>
+
+      <!-- Timeline -->
+      <div class="reveal relative">
+        <div class="absolute left-0 right-0 top-[26px] h-px bg-gradient-to-r from-hazard via-steel/40 to-alert hidden md:block"></div>
+        <div id="timeline-nodes" class="grid grid-cols-2 md:grid-cols-4 gap-3 relative"></div>
+      </div>
+
+      <article id="timeline-panel" class="reveal mt-8 glass glass-hz cut p-6 sm:p-10 grid md:grid-cols-[auto,1fr] gap-6 items-start" aria-live="polite">
+        <div class="w-16 h-16 cut-sm bg-hazard/10 border border-hazard/40 flex items-center justify-center">
+          <i id="tl-icon" data-lucide="flask-conical" class="w-8 h-8 text-hazard"></i>
+        </div>
+        <div>
+          <p id="tl-date" class="font-tactical uppercase tracking-[.25em] text-hazard text-sm"></p>
+          <h3 id="tl-title" class="font-display text-2xl sm:text-3xl text-white mt-1"></h3>
+          <p id="tl-text" class="mt-4 text-steel leading-relaxed"></p>
+          <ul id="tl-facts" class="mt-5 flex flex-wrap gap-2"></ul>
+        </div>
+      </article>
+
+      <!-- Moniteur V-19 -->
+      <div class="mt-24">
+        <header class="reveal mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <p class="font-tactical text-alert uppercase tracking-[.3em] text-sm">// Moniteur médical IBS</p>
+            <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Souche V-19</h2>
+            <p class="mt-4 text-steel max-w-2xl">Agent pathogène aéroporté d'origine synthétique. Transmission par spores et gouttelettes. Aucun vaccin connu — seul l'<strong class="text-white">Inhibiteur Bêta</strong> ralentit sa progression.</p>
+          </div>
+          <svg viewBox="0 0 300 60" class="w-full md:w-80 h-16 text-toxic" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path class="ecg" d="M0 30 H60 L70 30 L78 8 L88 52 L96 30 H150 L160 30 L168 12 L178 48 L186 30 H240 L250 30 L258 4 L268 56 L276 30 H300"/>
+          </svg>
+        </header>
+
+        <div class="grid md:grid-cols-3 gap-5">
+          <!-- Phase 1 -->
+          <article class="reveal glass cut p-6 border-t-2 !border-t-toxic">
+            <div class="flex items-center justify-between">
+              <span class="font-tactical uppercase tracking-widest text-toxic text-sm font-bold">Phase 1</span>
+              <i data-lucide="thermometer" class="w-6 h-6 text-toxic"></i>
+            </div>
+            <h3 class="font-display text-xl text-white mt-3">Incubation</h3>
+            <p class="mt-3 text-steel text-sm leading-relaxed">Asymptomatique de 3 à 10 jours. Légère fièvre, fatigue. Le porteur est déjà contagieux — et l'ignore.</p>
+            <div class="mt-5">
+              <div class="flex justify-between text-xs font-tactical uppercase text-steel mb-1"><span>Charge virale</span><span>20%</span></div>
+              <div class="h-2 bg-ash"><div class="h-full bg-toxic bar" data-w="20%" style="width:0"></div></div>
+            </div>
+            <p class="mt-4 text-xs font-tactical uppercase tracking-wider text-steel">Statut : <span class="text-toxic">Surveillance</span></p>
+          </article>
+
+          <!-- Phase 2 -->
+          <article class="reveal glass cut p-6 border-t-2 !border-t-hazard">
+            <div class="flex items-center justify-between">
+              <span class="font-tactical uppercase tracking-widest text-hazard text-sm font-bold">Phase 2</span>
+              <i data-lucide="pill" class="w-6 h-6 text-hazard"></i>
+            </div>
+            <h3 class="font-display text-xl text-white mt-3">Toux sous Inhibiteur</h3>
+            <p class="mt-3 text-steel text-sm leading-relaxed">Toux sèche, crachats blanchâtres, vertiges. Stabilisable uniquement par injection régulière d'<strong class="text-white">Inhibiteur Bêta</strong>. Une dose manquée et c'est la rechute.</p>
+            <div class="mt-5">
+              <div class="flex justify-between text-xs font-tactical uppercase text-steel mb-1"><span>Charge virale</span><span>60%</span></div>
+              <div class="h-2 bg-ash"><div class="h-full bg-hazard bar" data-w="60%" style="width:0"></div></div>
+            </div>
+            <p class="mt-4 text-xs font-tactical uppercase tracking-wider text-steel">Statut : <span class="text-hazard">Traitement obligatoire</span></p>
+          </article>
+
+          <!-- Phase 3 -->
+          <article class="reveal glass cut p-6 border-t-2 !border-t-alert relative overflow-hidden">
+            <div class="absolute inset-0 bg-alert/5 pointer-events-none"></div>
+            <div class="relative flex items-center justify-between">
+              <span class="font-tactical uppercase tracking-widest text-alert text-sm font-bold flex items-center gap-2"><span class="w-2 h-2 bg-alert rounded-full blink"></span>Phase 3</span>
+              <i data-lucide="skull" class="w-6 h-6 text-alert"></i>
+            </div>
+            <h3 class="relative font-display text-xl text-white mt-3">Critique</h3>
+            <p class="relative mt-3 text-steel text-sm leading-relaxed">Détresse respiratoire, hémorragies, délire. Le patient est déclaré <strong class="text-alert">non récupérable</strong> et <strong class="text-white">déporté sur Cayo Perico</strong> pour isolement définitif.</p>
+            <div class="relative mt-5">
+              <div class="flex justify-between text-xs font-tactical uppercase text-steel mb-1"><span>Charge virale</span><span>95%</span></div>
+              <div class="h-2 bg-ash"><div class="h-full bg-alert bar" data-w="95%" style="width:0"></div></div>
+            </div>
+            <p class="relative mt-4 text-xs font-tactical uppercase tracking-wider text-steel">Statut : <span class="text-alert">Déportation</span></p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hazard-stripes h-3 opacity-80"></div>
+
+  <!-- ========== CARTE GÉOPOLITIQUE ========== -->
+  <section id="carte" class="relative py-24 bg-coal">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <header class="reveal mb-10">
+        <p class="font-tactical text-hazard uppercase tracking-[.3em] text-sm">// Cartographie militaire — Diffusion restreinte</p>
+        <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Carte géopolitique</h2>
+      </header>
+
+      <div class="reveal flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist" aria-label="Zones de la carte" id="map-tabs"></div>
+
+      <div class="reveal mt-6 grid lg:grid-cols-5 gap-6">
+        <!-- Carte schématique -->
+        <div class="lg:col-span-2 glass cut p-4 relative">
+          <div class="absolute top-3 left-4 font-tactical text-[10px] uppercase tracking-widest text-steel/70">Grille 7-Δ · Échelle non contractuelle</div>
+          <svg id="map-svg" viewBox="0 0 300 380" class="w-full h-auto mt-4" aria-label="Carte schématique de la zone de quarantaine">
+            <defs>
+              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#9aa3ad" stroke-opacity=".08"/></pattern>
+              <pattern id="redhatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="8" fill="#e23b3b" fill-opacity=".55"/></pattern>
+            </defs>
+            <rect width="300" height="380" fill="url(#grid)"/>
+            <!-- Nord -->
+            <path data-zone="nord" class="zone" style="color:#8bd450" fill="#8bd450" fill-opacity=".18" stroke="#8bd450" stroke-width="1.5"
+              d="M70 20 L190 10 L250 60 L265 150 L180 170 L95 175 L55 120 Z"/>
+            <!-- Frontière Route 68 -->
+            <path data-zone="frontiere" class="zone" style="color:#f5c518" fill="none" stroke="#f5c518" stroke-width="4" stroke-dasharray="8 4"
+              d="M45 182 L120 176 L200 172 L275 160"/>
+            <!-- Sud -->
+            <path data-zone="sud" class="zone" style="color:#9aa3ad" fill="#9aa3ad" fill-opacity=".14" stroke="#c8ced4" stroke-width="1.5"
+              d="M55 190 L270 168 L250 260 L200 320 L120 330 L70 280 Z"/>
+            <!-- Zones rouges -->
+            <g data-zone="rouges" class="zone" style="color:#e23b3b">
+              <circle cx="215" cy="200" r="22" fill="url(#redhatch)" stroke="#e23b3b"/>
+              <circle cx="140" cy="110" r="16" fill="url(#redhatch)" stroke="#e23b3b"/>
+              <circle cx="100" cy="240" r="12" fill="url(#redhatch)" stroke="#e23b3b"/>
+            </g>
+            <!-- Cayo -->
+            <path data-zone="cayo" class="zone" style="color:#ffffff" fill="#ffffff" fill-opacity=".2" stroke="#fff" stroke-width="1.5"
+              d="M235 345 L262 338 L275 355 L258 372 L236 366 Z"/>
+            <!-- Libellés -->
+            <g font-family="Rajdhani" font-weight="700" font-size="11" fill="#d6dbe0" letter-spacing="1.5" pointer-events="none">
+              <text x="120" y="90">NORD</text>
+              <text x="122" y="262">SUD MARTIAL</text>
+              <text x="210" y="196" fill="#f5c518" font-size="9">ROUTE 68</text>
+              <text x="200" y="330" font-size="9">CAYO PERICO</text>
+              <text x="190" y="230" fill="#e23b3b" font-size="9">HUMANE</text>
+            </g>
+          </svg>
+          <div class="flex flex-wrap gap-3 mt-3 text-[11px] font-tactical uppercase tracking-wider text-steel">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-white/40"></span>Blanche</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-steel/60"></span>Verte/Jaune</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-1 bg-hazard"></span>Mur</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-toxic/50"></span>Nord</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-alert/60"></span>Rouge</span>
+          </div>
+        </div>
+
+        <!-- Fiche de zone -->
+        <article id="zone-panel" class="lg:col-span-3 glass glass-hz cut p-6 sm:p-8" role="tabpanel" aria-live="polite">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span id="zone-tag" class="inline-block px-2 py-0.5 cut-sm font-tactical font-bold uppercase tracking-widest text-xs"></span>
+              <h3 id="zone-title" class="font-display text-2xl sm:text-3xl text-white mt-3"></h3>
+              <p id="zone-sub" class="font-tactical uppercase tracking-wider text-steel text-sm mt-1"></p>
+            </div>
+            <i id="zone-icon" data-lucide="map-pin" class="w-10 h-10 text-hazard shrink-0"></i>
+          </div>
+          <p id="zone-text" class="mt-5 text-steel leading-relaxed"></p>
+          <div class="grid sm:grid-cols-3 gap-3 mt-6" id="zone-stats"></div>
+          <ul id="zone-points" class="mt-6 space-y-2"></ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="barbed"></div>
+
+  <!-- ========== LE SAS D'ENTRÉE ========== -->
+  <section id="sas" class="relative py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <header class="reveal mb-14 text-center">
+        <p class="font-tactical text-hazard uppercase tracking-[.3em] text-sm">// Procédure d'admission</p>
+        <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Le Sas d'entrée</h2>
+        <p class="mt-4 text-steel max-w-2xl mx-auto">Personne n'entre sur le continent sans être passé par le lazaret. Quatre étapes, aucune exception.</p>
+      </header>
+
+      <ol class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 relative">
+        <li class="reveal glass cut p-6 relative">
+          <span class="font-display text-5xl text-hazard/20 absolute top-3 right-4">01</span>
+          <i data-lucide="file-text" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl text-white uppercase tracking-wide mt-4">Dossier de Transit</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Déposez votre candidature via le formulaire ou le Discord. Un agent de la Préfecture l'examine sous 72 h.</p>
+        </li>
+        <li class="reveal glass cut p-6 relative">
+          <span class="font-display text-5xl text-hazard/20 absolute top-3 right-4">02</span>
+          <i data-lucide="ship" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl text-white uppercase tracking-wide mt-4">Débarquement</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Vous arrivez à Cayo Perico en blouse d'isolement, sans effets personnels. Vos biens sont consignés.</p>
+        </li>
+        <li class="reveal glass cut p-6 relative">
+          <span class="font-display text-5xl text-hazard/20 absolute top-3 right-4">03</span>
+          <i data-lucide="scan-line" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl text-white uppercase tracking-wide mt-4">Dépistage IBS / FDC</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Prélèvement, interrogatoire, prise d'empreintes. L'IBS vous attribue votre classe civique et votre carnet sanitaire.</p>
+        </li>
+        <li class="reveal glass cut p-6 relative">
+          <span class="font-display text-5xl text-hazard/20 absolute top-3 right-4">04</span>
+          <i data-lucide="anchor" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl text-white uppercase tracking-wide mt-4">Traversée</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Le bac de la FDC vous dépose sur le continent. Votre classe détermine où vous avez le droit de vivre.</p>
+        </li>
+      </ol>
+
+      <!-- Classes civiques -->
+      <div class="mt-24">
+        <header class="reveal mb-10">
+          <p class="font-tactical text-hazard uppercase tracking-[.3em] text-sm">// Carnet sanitaire</p>
+          <h2 class="font-display font-bold text-3xl sm:text-4xl metal mt-2">Classes civiques</h2>
+        </header>
+
+        <div class="grid md:grid-cols-3 gap-5">
+          <article class="reveal cut relative overflow-hidden bg-gradient-to-br from-toxic/20 to-coal border border-toxic/40 p-6">
+            <div class="flex items-center justify-between">
+              <span class="font-display text-6xl text-toxic">A</span>
+              <i data-lucide="shield-check" class="w-10 h-10 text-toxic"></i>
+            </div>
+            <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-2">Citoyen sain</h3>
+            <p class="text-steel text-sm mt-2 leading-relaxed">Résidence autorisée en Zone Verte. Accès aux emplois publics, aux rations complètes et aux soins prioritaires.</p>
+            <ul class="mt-4 space-y-1 text-sm">
+              <li class="flex gap-2"><i data-lucide="check" class="w-4 h-4 text-toxic shrink-0 mt-0.5"></i>Libre circulation au Sud</li>
+              <li class="flex gap-2"><i data-lucide="check" class="w-4 h-4 text-toxic shrink-0 mt-0.5"></i>Contrôle mensuel</li>
+            </ul>
+          </article>
+          <article class="reveal cut relative overflow-hidden bg-gradient-to-br from-hazard/20 to-coal border border-hazard/40 p-6">
+            <div class="flex items-center justify-between">
+              <span class="font-display text-6xl text-hazard">B</span>
+              <i data-lucide="clock-alert" class="w-10 h-10 text-hazard"></i>
+            </div>
+            <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-2">Sous surveillance</h3>
+            <p class="text-steel text-sm mt-2 leading-relaxed">Exposition suspectée ou Phase 1. Contrôle obligatoire <strong class="text-white">tous les 3 jours</strong> au centre IBS. Un rendez-vous manqué = avis de recherche.</p>
+            <ul class="mt-4 space-y-1 text-sm">
+              <li class="flex gap-2"><i data-lucide="minus" class="w-4 h-4 text-hazard shrink-0 mt-0.5"></i>Zone Jaune uniquement</li>
+              <li class="flex gap-2"><i data-lucide="minus" class="w-4 h-4 text-hazard shrink-0 mt-0.5"></i>Rations réduites</li>
+            </ul>
+          </article>
+          <article class="reveal cut relative overflow-hidden bg-gradient-to-br from-alert/20 to-coal border border-alert/40 p-6">
+            <div class="flex items-center justify-between">
+              <span class="font-display text-6xl text-alert">C</span>
+              <i data-lucide="ban" class="w-10 h-10 text-alert"></i>
+            </div>
+            <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-2">Banni</h3>
+            <p class="text-steel text-sm mt-2 leading-relaxed">Infecté, récidiviste ou réfractaire. Deux options : l'<strong class="text-white">exil au Nord</strong> au-delà du Mur, ou les <strong class="text-white">travaux forcés</strong> pour la Préfecture.</p>
+            <ul class="mt-4 space-y-1 text-sm">
+              <li class="flex gap-2"><i data-lucide="x" class="w-4 h-4 text-alert shrink-0 mt-0.5"></i>Aucun droit au Sud</li>
+              <li class="flex gap-2"><i data-lucide="x" class="w-4 h-4 text-alert shrink-0 mt-0.5"></i>Tatouage de classe</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hazard-stripes h-3 opacity-80"></div>
+
+  <!-- ========== FACTIONS ========== -->
+  <section id="factions" class="relative py-24 bg-coal">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <header class="reveal mb-10">
+        <p class="font-tactical text-hazard uppercase tracking-[.3em] text-sm">// Registre des organisations</p>
+        <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Factions & économie</h2>
+        <p class="mt-4 text-steel max-w-2xl">Services publics, entreprises et réseaux clandestins. Cliquez sur une carte pour lire la fiche complète.</p>
+      </header>
+
+      <div class="reveal flex flex-wrap gap-2 mb-8" id="faction-filters">
+        <button class="filter-btn active px-4 py-2 cut-sm border border-white/15 font-tactical font-bold uppercase tracking-wider text-sm text-steel transition" data-filter="all">Toutes</button>
+        <button class="filter-btn px-4 py-2 cut-sm border border-white/15 font-tactical font-bold uppercase tracking-wider text-sm text-steel transition" data-filter="triade">Triade d'urgence</button>
+        <button class="filter-btn px-4 py-2 cut-sm border border-white/15 font-tactical font-bold uppercase tracking-wider text-sm text-steel transition" data-filter="sud">Entreprises du Sud</button>
+        <button class="filter-btn px-4 py-2 cut-sm border border-white/15 font-tactical font-bold uppercase tracking-wider text-sm text-steel transition" data-filter="nord">Entreprises du Nord</button>
+        <button class="filter-btn px-4 py-2 cut-sm border border-white/15 font-tactical font-bold uppercase tracking-wider text-sm text-steel transition" data-filter="illegal">Illégal</button>
+      </div>
+
+      <div id="faction-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </div>
+  </section>
+
+  <div class="barbed"></div>
+
+  <!-- ========== RÈGLEMENT ========== -->
+  <section id="reglement" class="relative py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+      <header class="reveal mb-12">
+        <p class="font-tactical text-alert uppercase tracking-[.3em] text-sm">// Règles d'or — Non négociables</p>
+        <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Règlement RP</h2>
+      </header>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <article class="reveal glass cut p-6 border-l-4 !border-l-hazard">
+          <i data-lucide="siren" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-4">Fear RP sanitaire & militaire</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Vous craignez la maladie, les armes et l'uniforme. Un civil face à un soldat armé obéit. Un malade qui tousse fait reculer la foule.</p>
+        </article>
+        <article class="reveal glass cut p-6 border-l-4 !border-l-hazard">
+          <i data-lucide="package" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-4">Cohérence matérielle</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Pas de voitures de luxe rutilantes ni de tenues de soirée. Tout est usé, rationné, récupéré. Votre équipement raconte votre histoire.</p>
+        </article>
+        <article class="reveal glass cut p-6 border-l-4 !border-l-hazard">
+          <i data-lucide="crosshair" class="w-8 h-8 text-hazard"></i>
+          <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-4">Rareté des armes</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Chaque munition compte. Les armes lourdes sont réservées aux forces armées ; tirer doit toujours être la dernière option.</p>
+        </article>
+        <article class="reveal glass cut p-6 border-l-4 !border-l-alert">
+          <i data-lucide="waves" class="w-8 h-8 text-alert"></i>
+          <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-4">Interdiction de nager</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Quitter Cayo Perico à la nage est strictement interdit (HRP comme RP). Le lazaret se quitte par le bac officiel ou par un passeur.</p>
+        </article>
+        <article class="reveal glass cut p-6 border-l-4 !border-l-alert">
+          <i data-lucide="brick-wall" class="w-8 h-8 text-alert"></i>
+          <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-4">Respect de la Route 68</h3>
+          <p class="mt-2 text-steel text-sm leading-relaxed">Le Mur ne se franchit pas en roulant à travers champs. Postes de contrôle, tunnels ou convois : chaque passage se joue en RP.</p>
+        </article>
+        <article class="reveal glass cut p-6 flex flex-col justify-between bg-hazard/5">
+          <div>
+            <i data-lucide="book-open" class="w-8 h-8 text-steel"></i>
+            <h3 class="font-tactical font-bold text-xl uppercase tracking-wide text-white mt-4">Règlement complet</h3>
+            <p class="mt-2 text-steel text-sm leading-relaxed">Le règlement intégral (HRP, sanctions, procédures) est disponible sur le Discord, salon <span class="text-hazard">#règlement</span>.</p>
+          </div>
+          <a href="#" class="discord-link mt-4 inline-flex items-center gap-2 text-hazard font-tactical font-bold uppercase tracking-wider text-sm hover:text-white">Lire sur Discord <i data-lucide="arrow-right" class="w-4 h-4"></i></a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="hazard-stripes h-3 opacity-80"></div>
+
+  <!-- ========== FORMULAIRE WHITELIST ========== -->
+  <section id="dossier" class="relative py-24 bg-coal">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <header class="reveal mb-10 text-center">
+        <p class="font-tactical text-hazard uppercase tracking-[.3em] text-sm">// Préfecture d'urgence — Formulaire PE-07</p>
+        <h2 class="font-display font-bold text-3xl sm:text-5xl metal mt-2">Dossier de Transit</h2>
+        <p class="mt-4 text-steel">Tout dossier incomplet ou incohérent sera rejeté sans motif. Réponse sous 72 h sur Discord.</p>
+      </header>
+
+      <form id="transit-form" class="reveal glass glass-hz cut p-6 sm:p-10 space-y-6" novalidate>
+        <fieldset class="space-y-4">
+          <legend class="font-tactical font-bold uppercase tracking-widest text-hazard text-sm flex items-center gap-2 mb-2"><i data-lucide="user" class="w-4 h-4"></i> Identité HRP</legend>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="font-tactical uppercase tracking-wider text-xs text-steel">Pseudo Discord *</span>
+              <input name="discord" required maxlength="40" placeholder="ex : brume.blanche" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white placeholder:text-steel/40" />
+            </label>
+            <label class="block">
+              <span class="font-tactical uppercase tracking-wider text-xs text-steel">Âge (HRP) *</span>
+              <input name="age_hrp" type="number" required min="16" max="99" placeholder="18" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white placeholder:text-steel/40" />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="space-y-4">
+          <legend class="font-tactical font-bold uppercase tracking-widest text-hazard text-sm flex items-center gap-2 mb-2"><i data-lucide="id-card" class="w-4 h-4"></i> Identité RP</legend>
+          <div class="grid sm:grid-cols-3 gap-4">
+            <label class="block">
+              <span class="font-tactical uppercase tracking-wider text-xs text-steel">Prénom *</span>
+              <input name="prenom" required maxlength="30" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white" />
+            </label>
+            <label class="block">
+              <span class="font-tactical uppercase tracking-wider text-xs text-steel">Nom *</span>
+              <input name="nom" required maxlength="30" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white" />
+            </label>
+            <label class="block">
+              <span class="font-tactical uppercase tracking-wider text-xs text-steel">Âge RP *</span>
+              <input name="age_rp" type="number" required min="18" max="90" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white" />
+            </label>
+          </div>
+          <label class="block">
+            <span class="font-tactical uppercase tracking-wider text-xs text-steel">Profession avant la crise *</span>
+            <input name="profession" required maxlength="60" placeholder="ex : infirmière, mécanicien, comptable…" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white placeholder:text-steel/40" />
+          </label>
+          <label class="block">
+            <span class="font-tactical uppercase tracking-wider text-xs text-steel">Raison de présence dans la zone *</span>
+            <select name="raison" required class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white">
+              <option value="">— Sélectionner —</option>
+              <option>Résident piégé par le confinement</option>
+              <option>Personnel médical réquisitionné</option>
+              <option>Militaire / contractuel de la FDC</option>
+              <option>Réfugié arrivé clandestinement</option>
+              <option>Journaliste / observateur</option>
+              <option>Autre (à préciser dans l'histoire)</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset class="space-y-4">
+          <legend class="font-tactical font-bold uppercase tracking-widest text-hazard text-sm flex items-center gap-2 mb-2"><i data-lucide="stethoscope" class="w-4 h-4"></i> Antécédents médicaux</legend>
+          <div class="grid sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Exposition au V-19">
+            <label class="cut-sm border border-white/15 p-3 flex items-center gap-3 cursor-pointer has-[:checked]:border-toxic has-[:checked]:bg-toxic/10">
+              <input type="radio" name="exposition" value="Aucune exposition connue" required class="accent-[#8bd450]" /> <span class="text-sm">Aucune exposition</span>
+            </label>
+            <label class="cut-sm border border-white/15 p-3 flex items-center gap-3 cursor-pointer has-[:checked]:border-hazard has-[:checked]:bg-hazard/10">
+              <input type="radio" name="exposition" value="Exposition suspectée" class="accent-[#f5c518]" /> <span class="text-sm">Exposition suspectée</span>
+            </label>
+            <label class="cut-sm border border-white/15 p-3 flex items-center gap-3 cursor-pointer has-[:checked]:border-alert has-[:checked]:bg-alert/10">
+              <input type="radio" name="exposition" value="Contact avec un malade" class="accent-[#e23b3b]" /> <span class="text-sm">Contact malade</span>
+            </label>
+          </div>
+          <label class="block">
+            <span class="font-tactical uppercase tracking-wider text-xs text-steel">Antécédents (allergies, blessures, traitements…)</span>
+            <textarea name="antecedents" rows="3" maxlength="500" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white resize-y"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="space-y-4">
+          <legend class="font-tactical font-bold uppercase tracking-widest text-hazard text-sm flex items-center gap-2 mb-2"><i data-lucide="scroll-text" class="w-4 h-4"></i> Histoire du personnage</legend>
+          <label class="block">
+            <span class="font-tactical uppercase tracking-wider text-xs text-steel flex justify-between"><span>Background (200 caractères min.) *</span><span id="bg-count">0 / 1500</span></span>
+            <textarea name="background" rows="6" required minlength="200" maxlength="1500" class="mt-1 w-full px-4 py-3 cut-sm border border-white/15 focus:border-hazard focus:outline-none text-white resize-y"></textarea>
+          </label>
+          <label class="flex items-start gap-3 text-sm text-steel cursor-pointer">
+            <input type="checkbox" name="reglement" required class="mt-1 accent-[#f5c518]" />
+            J'ai lu et j'accepte le règlement RP, notamment le Fear RP sanitaire, l'interdiction de nager depuis Cayo Perico et le respect de la Route 68.
+          </label>
+        </fieldset>
+
+        <!-- Anti-spam (champ piège invisible) -->
+        <input type="text" name="site_web" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+
+        <p id="form-error" class="hidden cut-sm bg-alert/15 border border-alert/50 text-alert px-4 py-3 text-sm" role="alert"></p>
+
+        <button type="submit" id="submit-btn" class="w-full inline-flex items-center justify-center gap-3 px-7 py-4 cut bg-hazard text-black font-tactical font-bold uppercase tracking-wider hover:bg-white transition disabled:opacity-60 disabled:cursor-wait">
+          <i data-lucide="send" class="w-5 h-5"></i> <span>Transmettre le dossier</span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="relative border-t border-white/10">
+    <div class="hazard-tape"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <i data-lucide="biohazard" class="w-8 h-8 text-hazard"></i>
+        <div>
+          <p class="font-display font-bold tracking-widest metal">PROTOCOLE ÉGIDE</p>
+          <p class="font-tactical text-xs uppercase tracking-wider text-steel">Quarantaine RP · FiveM Whitelist</p>
+        </div>
+      </div>
+      <p class="text-xs text-steel/70 text-center">Serveur non affilié à Rockstar Games ni à Take-Two Interactive. © <span id="year"></span> Protocole Égide.</p>
+      <a href="#" class="discord-link inline-flex items-center gap-2 px-4 py-2 cut-sm border border-hazard/50 text-hazard font-tactical font-bold uppercase tracking-wider text-sm hover:bg-hazard hover:text-black transition"><i data-lucide="radio" class="w-4 h-4"></i> Rejoindre le Discord</a>
+    </div>
+  </footer>
+
+  <!-- ========== MODALE ========== -->
+  <div id="modal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" data-close></div>
+    <div class="relative glass glass-hz cut w-full max-w-lg max-h-[85vh] overflow-y-auto">
+      <div class="hazard-tape"></div>
+      <div class="p-6 sm:p-8">
+        <button class="absolute top-4 right-4 text-steel hover:text-hazard" data-close aria-label="Fermer"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <div id="modal-icon-wrap" class="w-14 h-14 cut-sm bg-hazard/10 border border-hazard/40 flex items-center justify-center"><i id="modal-icon" data-lucide="info" class="w-7 h-7 text-hazard"></i></div>
+        <p id="modal-tag" class="font-tactical uppercase tracking-[.25em] text-hazard text-xs mt-5"></p>
+        <h3 id="modal-title" class="font-display text-2xl text-white mt-1"></h3>
+        <div id="modal-body" class="mt-4 text-steel leading-relaxed text-sm space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* =========================================================
+     CONFIGURATION — à adapter avant mise en ligne
+     ========================================================= */
+  const CONFIG = {
+    discordInvite: 'https://discord.gg/VOTRE-INVITATION',
+    // URL du Webhook Discord (salon privé du staff). Voir README : de préférence,
+    // passez par un petit relais serveur pour ne pas exposer l'URL dans le navigateur.
+    webhookUrl: '',
+    // Code CFX du serveur (ex : "abc123") pour afficher le nombre de joueurs réel.
+    // Laisser vide = affichage de démonstration.
+    cfxCode: '',
+    maxPlayers: 128,
+    crisisStart: '2026-05-10' // Jour 0 RP (sert au compteur J+)
+  };
+
+  /* ===================== DONNÉES ===================== */
+  const TIMELINE = [
+    { date: 'Jour 0', title: "L'incident Humane", icon: 'flask-conical',
+      text: "03h12 : une explosion secoue le niveau -4 du complexe Humane Labs. Une brume blanche s'échappe des conduits de ventilation et se répand sur les collines. En 48 h, les urgences de Los Santos sont saturées. Le gouverneur déclenche le Protocole Égide : quarantaine totale, fermeture de l'espace aérien et des ports.",
+      facts: ['Souche V-19 identifiée', 'Loi martiale décrétée', '1 200 cas en 72 h'] },
+    { date: 'Mois 2', title: 'La fracture de la Route 68', icon: 'brick-wall',
+      text: "Incapable de tenir tout le territoire, l'état-major se replie au sud. Un mur de conteneurs, de barbelés et de miradors est érigé le long de la Route 68. Au nord, Blaine County est abandonné. Les milices locales proclament leur autonomie.",
+      facts: ['Mur de 42 km', 'Blaine County abandonné', 'Naissance des Milices'] },
+    { date: 'Mois 3', title: 'La guerre des ressources', icon: 'swords',
+      text: "Le Sud contrôle l'Inhibiteur Bêta, le Nord contrôle les fermes et le pétrole. Les pénuries déclenchent émeutes, raids et embuscades sur les convois. Un accord fragile instaure un échange hebdomadaire au Mur : remèdes contre nourriture et carburant.",
+      facts: ['Convois hebdomadaires', 'Marché noir en Zone Jaune', 'Rationnement généralisé'] },
+    { date: 'Mois 6', title: 'Le lazaret de Cayo Perico', icon: 'hospital',
+      text: "L'île de Cayo Perico est réquisitionnée et transformée en lazaret. Elle devient le sas obligatoire pour tout nouvel arrivant et le dernier arrêt des malades en Phase 3. C'est ici que commence votre histoire.",
+      facts: ['Sas d’entrée unique', 'Isolement Phase 3', 'Vous êtes ici'] }
+  ];
+
+  const ZONES = {
+    cayo: { label: 'Cayo Perico', tag: 'Zone Blanche', tagClass: 'bg-white text-black', icon: 'hospital', title: 'Le Lazaret de Cayo Perico',
+      sub: 'Sas d’apparition obligatoire — Contrôle IBS',
+      text: "Ancienne île privée devenue camp sanitaire. Tout nouvel arrivant y débarque en blouse. On y trouve le centre de dépistage de l'Institut de Bio-Sécurité, les baraquements de transit et, au nord de l'île, le camp d'isolement où finissent les malades en Phase 3.",
+      stats: [['Accès', 'Bac FDC'], ['Danger', 'Modéré'], ['Contrôle', 'IBS / FDC']],
+      points: ['Point d’apparition de tous les nouveaux joueurs', 'Dépistage et attribution des classes civiques', 'Camp d’isolement Phase 3 — zone interdite', 'Corsaires actifs sur les côtes'] },
+    sud: { label: 'Sud Martial', tag: 'Zones Verte & Jaune', tagClass: 'bg-steel text-black', icon: 'shield', title: 'Le Bastion de Los Santos',
+      sub: 'Couvre-feu 22h – 6h — Monopole de l’Inhibiteur Bêta',
+      text: "Le cœur administratif de la quarantaine. La Zone Verte (centre-ville, Vinewood) est réservée aux Classe A, sous la protection de la FDC. Humane Labs y produit l'Inhibiteur Bêta, la ressource la plus précieuse du continent. Autour, la Zone Jaune — quartiers sud et ports — vit du marché noir et de la débrouille.",
+      stats: [['Accès', 'Classe A / B'], ['Danger', 'Variable'], ['Contrôle', 'FDC / Préfecture']],
+      points: ['Humane Labs : production d’Inhibiteur Bêta', 'Check-points entre Verte et Jaune', 'Marché noir florissant en Zone Jaune', 'Couvre-feu strictement appliqué'] },
+    frontiere: { label: 'Route 68', tag: 'Frontière', tagClass: 'bg-hazard text-black', icon: 'brick-wall', title: 'Le Mur de la Route 68',
+      sub: 'Frontière fortifiée — Tirs autorisés sans sommation',
+      text: "Une muraille de béton, de conteneurs et de barbelés coupe le continent en deux. Miradors tous les 300 mètres, projecteurs et champs dégagés. Chaque semaine, au poste d'échange, Sud et Nord négocient leurs convois : Inhibiteurs contre vivres et carburant. Sous le Mur, les tunnels des passeurs.",
+      stats: [['Accès', 'Militaire'], ['Danger', 'Élevé'], ['Contrôle', 'FDC']],
+      points: ['Convoi d’échange hebdomadaire', 'Points de passage contrôlés uniquement', 'Tunnels clandestins sous le Mur', 'Zone de non-droit la nuit'] },
+    nord: { label: 'Nord', tag: 'Sécession', tagClass: 'bg-toxic text-black', icon: 'wheat', title: 'Le Nord Sécessionniste',
+      sub: 'Blaine County — Territoire autonome',
+      text: "Abandonné par le Sud, Blaine County s'est organisé seul. Milices, fermiers et bannis de Classe C y ont fondé une société rude mais libre. Le Nord possède les fermes de Grapeseed et les puits de pétrole — mais manque cruellement d'Inhibiteurs Bêta. Chaque malade y est un fardeau.",
+      stats: [['Accès', 'Libre / Classe C'], ['Danger', 'Élevé'], ['Contrôle', 'Milices']],
+      points: ['Fermes et nourriture fraîche (Grapeseed)', 'Pétrole et fonderie (Blaine)', 'Pénurie critique d’Inhibiteurs', 'Justice expéditive des milices'] },
+    rouges: { label: 'Zones Rouges', tag: 'Contaminé', tagClass: 'bg-alert text-white', icon: 'radiation', title: 'Les Zones Rouges',
+      sub: 'Masque à gaz et filtres actifs obligatoires',
+      text: "Secteurs saturés de spores où la brume ne se dissipe jamais. Sans masque à gaz et filtre actif, l'infection est quasi certaine en quelques minutes. Mais ces zones regorgent de matériel abandonné : médicaments, pièces, armes. Les plus audacieux y risquent leur vie.",
+      stats: [['Accès', 'Masque requis'], ['Danger', 'Extrême'], ['Contrôle', 'Aucun']],
+      points: ['Butin rare : matériel médical, armes', 'Filtres à durée limitée', 'Décontamination CleanCorp au retour', '7 zones rouges recensées'] }
+  };
+
+  const FACTIONS = [
+    // Triade d'urgence
+    { cat: 'triade', name: 'Institut de Bio-Sécurité', short: 'IBS', icon: 'heart-pulse', color: 'text-toxic',
+      desc: 'Ex-EMS. Soigne, dépiste et classe la population.',
+      body: "L'IBS gère le centre de Cayo Perico, les contrôles de Classe B et la distribution de l'Inhibiteur Bêta. Ses médecins ont le pouvoir de reclasser un citoyen — et donc de décider de son destin.", tags: ['Whitelist', 'Médical', 'Sud'] },
+    { cat: 'triade', name: 'Force de Confinement', short: 'FDC', icon: 'shield-alert', color: 'text-hazard',
+      desc: 'Ex-LSPD et Garde Côtière. Tient le Mur, les check-points et la mer.',
+      body: "Bras armé de la quarantaine : patrouilles, couvre-feu, garde du Mur et escorte des convois. La Garde Côtière intercepte les embarcations clandestines autour de Cayo Perico.", tags: ['Whitelist', 'Forces de l’ordre', 'Sud'] },
+    { cat: 'triade', name: 'Préfecture d’Urgence', short: 'PRÉF', icon: 'landmark', color: 'text-steel',
+      desc: 'Justice d’exception, quotas et administration.',
+      body: "Tribunal d'exception, gestion des quotas de rations, délivrance des laissez-passer et examen des Dossiers de Transit. Le Préfet dispose des pleins pouvoirs sous la loi martiale.", tags: ['Whitelist', 'Justice', 'Sud'] },
+    // Sud
+    { cat: 'sud', name: 'Ferraille & Blindage', short: 'F&B', icon: 'wrench', color: 'text-steel',
+      desc: 'Atelier de mécanique et de blindage de véhicules.',
+      body: "Réparation, blindage de fortune et récupération de pièces. Les véhicules de convoi passent tous par leurs mains.", tags: ['Entreprise', 'Mécanique'] },
+    { cat: 'sud', name: 'Coopérative de Rationnement', short: 'COOP', icon: 'package-open', color: 'text-hazard',
+      desc: 'Distribution officielle des rations et tickets.',
+      body: "Gère les entrepôts, les tickets de rationnement et les points de distribution. Une position qui attise toutes les convoitises… et la corruption.", tags: ['Entreprise', 'Alimentation'] },
+    { cat: 'sud', name: 'CleanCorp', short: 'CLN', icon: 'spray-can', color: 'text-toxic',
+      desc: 'Brigade de décontamination.',
+      body: "Nettoie les zones contaminées, décontamine les véhicules et les personnes au retour des Zones Rouges, et recycle les filtres usagés.", tags: ['Entreprise', 'Sanitaire'] },
+    { cat: 'sud', name: 'Fréquence Égide', short: 'RADIO', icon: 'radio-tower', color: 'text-hazard',
+      desc: 'La radio officielle — et parfois pirate.',
+      body: "Annonces sanitaires, couvre-feu, avis de recherche… et entre deux bulletins officiels, quelques messages codés que la Préfecture préfère ignorer.", tags: ['Entreprise', 'Médias'] },
+    // Nord
+    { cat: 'nord', name: 'Syndicat Agricole & Vivrier', short: 'SAV', icon: 'wheat', color: 'text-toxic',
+      desc: 'Les fermes de Grapeseed — nourriture fraîche.',
+      body: "Seule source de produits frais du continent. Le Syndicat négocie chaque convoi avec le Sud et nourrit le Nord.", tags: ['Entreprise', 'Nord'] },
+    { cat: 'nord', name: 'Compagnie Pétrolière & Fonderie', short: 'CPF', icon: 'fuel', color: 'text-amber',
+      desc: 'Carburant et munitions de Blaine.',
+      body: "Extrait et raffine le pétrole, fond le métal récupéré et produit des munitions artisanales. Sans elle, ni le Nord ni le Sud ne roulent.", tags: ['Entreprise', 'Nord'] },
+    // Illégal
+    { cat: 'illegal', name: 'Les Corsaires de Cayo', short: 'CRS', icon: 'sailboat', color: 'text-alert',
+      desc: 'Pirates et passeurs maritimes.',
+      body: "Font sortir clandestinement les détenus du lazaret et pillent les cargaisons de la Garde Côtière.", tags: ['Illégal', 'Mer'] },
+    { cat: 'illegal', name: 'Milices Sécessionnistes', short: 'MIL', icon: 'flag', color: 'text-alert',
+      desc: 'Les seigneurs armés du Nord.',
+      body: "Font régner leur loi sur Blaine County, protègent les fermes et escortent — ou attaquent — les convois.", tags: ['Illégal', 'Nord'] },
+    { cat: 'illegal', name: 'Passeurs du Mur & des Souterrains', short: 'PSR', icon: 'route', color: 'text-alert',
+      desc: 'Tunnels, égouts et faux convois.',
+      body: "Connaissent chaque faille du Mur. Font passer personnes, Inhibiteurs et armes — moyennant un prix exorbitant.", tags: ['Illégal', 'Frontière'] },
+    { cat: 'illegal', name: 'Faussaires & Chimistes', short: 'F&C', icon: 'flask-round', color: 'text-alert',
+      desc: 'Faux carnets, faux Inhibiteurs.',
+      body: "Falsifient les carnets sanitaires et synthétisent des Inhibiteurs de contrebande… à l'efficacité douteuse.", tags: ['Illégal', 'Laboratoire'] }
+  ];
+
+  const CAT_LABEL = { triade: "Triade d'urgence", sud: 'Entreprise du Sud', nord: 'Entreprise du Nord', illegal: 'Groupe illégal' };
+
+  /* ===================== UTILITAIRES ===================== */
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const icons = () => window.lucide && lucide.createIcons();
+  function setIcon(el, name) {
+    // Lucide remplace <i> par <svg> : on recrée l'élément
+    const i = document.createElement('i');
+    i.setAttribute('data-lucide', name);
+    i.id = el.id; i.className = el.getAttribute('class') || '';
+    el.replaceWith(i);
+    icons();
+  }
+
+  /* ===================== NAV ===================== */
+  $$('.discord-link, #discord-btn').forEach(a => { a.href = CONFIG.discordInvite; a.target = '_blank'; a.rel = 'noopener'; });
+  $('#year').textContent = new Date().getFullYear();
+  const days = Math.max(0, Math.floor((Date.now() - new Date(CONFIG.crisisStart)) / 864e5));
+  $('#day-count').textContent = days || 182;
+
+  const menuBtn = $('#menu-btn'), mobileMenu = $('#mobile-menu');
+  menuBtn.addEventListener('click', () => {
+    const open = mobileMenu.classList.toggle('hidden') === false;
+    menuBtn.setAttribute('aria-expanded', open);
+  });
+  $$('#mobile-menu a').forEach(a => a.addEventListener('click', () => mobileMenu.classList.add('hidden')));
+
+  window.addEventListener('scroll', () => {
+    $('#navbar').classList.toggle('shadow-2xl', scrollY > 30);
+  }, { passive: true });
+
+  /* ===================== STATUT SERVEUR ===================== */
+  async function updateStatus() {
+    $('#players-max').textContent = CONFIG.maxPlayers;
+    let players = null, online = true;
+    if (CONFIG.cfxCode) {
+      try {
+        const r = await fetch(`https://servers-frontend.fivem.net/api/servers/single/${encodeURIComponent(CONFIG.cfxCode)}`);
+        if (!r.ok) throw new Error();
+        const d = await r.json();
+        players = d.Data.clients; $('#players-max').textContent = d.Data.sv_maxclients;
+      } catch { online = false; }
+    } else {
+      players = 74 + Math.floor(Math.random() * 30); // démo
+    }
+    $('#players-count').textContent = online ? players : '0';
+    $$('.players-mobile').forEach(e => e.textContent = online ? players : '0');
+    $('#status-label').textContent = online ? 'En ligne' : 'Hors ligne';
+    $('#status-dot').className = `w-2 h-2 rounded-full ${online ? 'bg-toxic' : 'bg-alert'} blink`;
+  }
+  updateStatus(); setInterval(updateStatus, 60000);
+
+  /* ===================== TIMELINE ===================== */
+  const tlWrap = $('#timeline-nodes');
+  tlWrap.innerHTML = TIMELINE.map((t, i) => `
+    <button class="tl-node cut-sm glass px-4 py-3 text-left font-tactical uppercase tracking-wider border border-white/10 transition hover:border-hazard" data-i="${i}">
+      <span class="flex items-center gap-2"><span class="tl-dot w-3 h-3 rounded-full ${i === 3 ? 'bg-alert' : 'bg-hazard'}"></span><span class="font-bold">${esc(t.date)}</span></span>
+      <span class="block text-xs mt-1 opacity-80 normal-case tracking-normal font-body">${esc(t.title)}</span>
+    </button>`).join('');
+  function showTimeline(i) {
+    const t = TIMELINE[i];
+    $$('.tl-node').forEach(n => n.classList.toggle('active', +n.dataset.i === i));
+    $('#tl-date').textContent = t.date;
+    $('#tl-title').textContent = t.title;
+    $('#tl-text').textContent = t.text;
+    $('#tl-facts').innerHTML = t.facts.map(f => `<li class="px-3 py-1 cut-sm bg-ash border border-white/10 text-xs font-tactical uppercase tracking-wider text-steel">${esc(f)}</li>`).join('');
+    setIcon($('#tl-icon'), t.icon);
+  }
+  tlWrap.addEventListener('click', e => { const b = e.target.closest('.tl-node'); if (b) showTimeline(+b.dataset.i); });
+  showTimeline(0);
+
+  /* ===================== CARTE ===================== */
+  const zoneKeys = Object.keys(ZONES);
+  $('#map-tabs').innerHTML = zoneKeys.map(k => `
+    <button role="tab" aria-selected="false" data-zone="${k}" class="tab-btn shrink-0 px-4 py-2.5 cut-sm border border-white/15 font-tactical font-bold uppercase tracking-wider text-sm text-steel transition hover:text-hazard">${esc(ZONES[k].label)}</button>`).join('');
+  function showZone(k) {
+    const z = ZONES[k];
+    $$('#map-tabs .tab-btn').forEach(b => b.setAttribute('aria-selected', b.dataset.zone === k));
+    $$('#map-svg .zone').forEach(p => p.classList.toggle('active', p.dataset.zone === k));
+    const tag = $('#zone-tag'); tag.textContent = z.tag; tag.className = `inline-block px-2 py-0.5 cut-sm font-tactical font-bold uppercase tracking-widest text-xs ${z.tagClass}`;
+    $('#zone-title').textContent = z.title;
+    $('#zone-sub').textContent = z.sub;
+    $('#zone-text').textContent = z.text;
+    $('#zone-stats').innerHTML = z.stats.map(([a, b]) => `<div class="cut-sm bg-ash/70 border border-white/10 p-3"><p class="font-tactical text-[11px] uppercase tracking-widest text-steel">${esc(a)}</p><p class="font-tactical font-bold text-white uppercase">${esc(b)}</p></div>`).join('');
+    $('#zone-points').innerHTML = z.points.map(p => `<li class="flex gap-3 text-sm text-steel"><span class="mt-1.5 w-2 h-2 bg-hazard shrink-0"></span>${esc(p)}</li>`).join('');
+    setIcon($('#zone-icon'), z.icon);
+  }
+  $('#map-tabs').addEventListener('click', e => { const b = e.target.closest('.tab-btn'); if (b) showZone(b.dataset.zone); });
+  $('#map-tabs').addEventListener('keydown', e => {
+    if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+    const tabs = $$('#map-tabs .tab-btn'); const i = tabs.indexOf(document.activeElement);
+    const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]; n.focus(); showZone(n.dataset.zone);
+  });
+  $$('#map-svg .zone').forEach(p => p.addEventListener('click', () => showZone(p.dataset.zone)));
+  showZone('cayo');
+
+  /* ===================== FACTIONS ===================== */
+  $('#faction-grid').innerHTML = FACTIONS.map((f, i) => `
+    <button class="faction-card reveal text-left glass cut p-6 group hover:border-hazard/60 transition relative overflow-hidden" data-cat="${f.cat}" data-i="${i}">
+      <span class="absolute -right-2 -top-3 font-display text-6xl text-white/[.04] group-hover:text-hazard/10 transition">${esc(f.short)}</span>
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 cut-sm bg-ash border border-white/10 flex items-center justify-center"><i data-lucide="${f.icon}" class="w-6 h-6 ${f.color}"></i></div>
+        <div>
+          <p class="font-tactical text-[11px] uppercase tracking-widest ${f.cat === 'illegal' ? 'text-alert' : 'text-hazard'}">${CAT_LABEL[f.cat]}</p>
+          <h3 class="font-tactical font-bold text-lg text-white uppercase leading-tight">${esc(f.name)}</h3>
+        </div>
+      </div>
+      <p class="mt-4 text-steel text-sm">${esc(f.desc)}</p>
+      <span class="mt-4 inline-flex items-center gap-1 text-xs font-tactical uppercase tracking-wider text-hazard opacity-70 group-hover:opacity-100">Ouvrir la fiche <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i></span>
+    </button>`).join('');
+
+  $('#faction-filters').addEventListener('click', e => {
+    const b = e.target.closest('.filter-btn'); if (!b) return;
+    $$('.filter-btn').forEach(x => x.classList.toggle('active', x === b));
+    $$('.faction-card').forEach(c => c.classList.toggle('hidden', b.dataset.filter !== 'all' && c.dataset.cat !== b.dataset.filter));
+  });
+  $('#faction-grid').addEventListener('click', e => {
+    const c = e.target.closest('.faction-card'); if (!c) return;
+    const f = FACTIONS[+c.dataset.i];
+    openModal({ tag: CAT_LABEL[f.cat], title: f.name, icon: f.icon,
+      html: `<p>${esc(f.body)}</p><div class="flex flex-wrap gap-2 pt-2">${f.tags.map(t => `<span class="px-2 py-0.5 cut-sm bg-ash border border-white/10 text-xs font-tactical uppercase tracking-wider">${esc(t)}</span>`).join('')}</div>
+             <p class="pt-2 text-xs">Candidatures et recrutements : salon <span class="text-hazard">#recrutements</span> du Discord.</p>` });
+  });
+
+  /* ===================== MODALE ===================== */
+  const modal = $('#modal'); let lastFocus = null;
+  function openModal({ tag, title, icon = 'info', html, danger = false }) {
+    lastFocus = document.activeElement;
+    $('#modal-tag').textContent = tag;
+    $('#modal-tag').className = `font-tactical uppercase tracking-[.25em] text-xs mt-5 ${danger ? 'text-alert' : 'text-hazard'}`;
+    $('#modal-title').textContent = title;
+    $('#modal-body').innerHTML = html;
+    setIcon($('#modal-icon'), icon);
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    $('[data-close].absolute.top-4', modal).focus();
+  }
+  function closeModal() {
+    modal.classList.add('hidden'); modal.classList.remove('flex');
+    document.body.style.overflow = '';
+    lastFocus && lastFocus.focus();
+  }
+  modal.addEventListener('click', e => { if (e.target.closest('[data-close]')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+
+  /* ===================== ANIMATIONS AU SCROLL ===================== */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      en.target.classList.add('visible');
+      $$('.bar', en.target).forEach(b => { b.style.transition = 'width 1.4s ease'; b.style.width = b.dataset.w; });
+      io.unobserve(en.target);
+    });
+  }, { threshold: 0.12 });
+  $$('.reveal').forEach(el => io.observe(el));
+
+  /* ===================== FORMULAIRE → WEBHOOK DISCORD ===================== */
+  const form = $('#transit-form');
+  const bg = form.elements.background;
+  bg.addEventListener('input', () => { $('#bg-count').textContent = `${bg.value.length} / 1500`; });
+
+  const COOLDOWN_KEY = 'egide_dossier_envoye';
+  function readCooldown() { try { return +localStorage.getItem(COOLDOWN_KEY) || 0; } catch { return 0; } }
+  function writeCooldown() { try { localStorage.setItem(COOLDOWN_KEY, Date.now()); } catch {} }
+
+  function showError(msg) { const e = $('#form-error'); e.textContent = msg; e.classList.remove('hidden'); }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    $('#form-error').classList.add('hidden');
+
+    if (form.elements.site_web.value) return; // bot détecté
+    if (!form.checkValidity()) {
+      const bad = form.querySelector(':invalid');
+      bad && bad.focus();
+      return showError(bg.value.length < 200 && bad === bg
+        ? `Votre background doit faire au moins 200 caractères (${bg.value.length} actuellement).`
+        : 'Merci de remplir tous les champs obligatoires (*) et d’accepter le règlement.');
+    }
+    if (Date.now() - readCooldown() < 10 * 60 * 1000) {
+      return showError('Un dossier a déjà été envoyé depuis ce navigateur il y a moins de 10 minutes.');
+    }
+
+    const d = Object.fromEntries(new FormData(form));
+    const cut = (s, n) => (s || '—').toString().slice(0, n);
+    const payload = {
+      username: 'Préfecture d’Urgence',
+      allowed_mentions: { parse: [] }, // empêche @everyone / @here
+      embeds: [{
+        title: `📁 Dossier de Transit — ${cut(d.prenom, 30)} ${cut(d.nom, 30)}`,
+        color: 0xF5C518,
+        fields: [
+          { name: 'Discord', value: cut(d.discord, 40), inline: true },
+          { name: 'Âge HRP', value: cut(d.age_hrp, 3), inline: true },
+          { name: 'Âge RP', value: cut(d.age_rp, 3), inline: true },
+          { name: 'Profession avant crise', value: cut(d.profession, 60) },
+          { name: 'Raison de présence', value: cut(d.raison, 80) },
+          { name: 'Exposition V-19', value: cut(d.exposition, 40), inline: true },
+          { name: 'Antécédents médicaux', value: cut(d.antecedents, 500) },
+          { name: 'Background', value: cut(d.background, 1024) }
+        ],
+        footer: { text: 'Protocole Égide · Formulaire PE-07' },
+        timestamp: new Date().toISOString()
+      }]
+    };
+
+    const btn = $('#submit-btn'); btn.disabled = true; $('span', btn).textContent = 'Transmission en cours…';
+    try {
+      if (!CONFIG.webhookUrl) throw new Error('nowebhook');
+      const r = await fetch(CONFIG.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!r.ok) throw new Error('http');
+      writeCooldown(); form.reset(); $('#bg-count').textContent = '0 / 1500';
+      openModal({ tag: 'Transmission réussie', title: 'Dossier enregistré', icon: 'circle-check',
+        html: `<p>Votre Dossier de Transit a bien été transmis à la Préfecture d'Urgence.</p><p>Un agent l'examinera sous <strong class="text-white">72 heures</strong>. Restez attentif à vos messages privés sur Discord.</p><p class="text-hazard font-tactical uppercase tracking-wider text-xs pt-2">Préparez-vous au débarquement sur Cayo Perico.</p>` });
+    } catch (err) {
+      openModal({ tag: 'Échec de transmission', title: 'Liaison interrompue', icon: 'triangle-alert', danger: true,
+        html: err.message === 'nowebhook'
+          ? `<p>Le formulaire n'est pas encore relié au Discord (URL de webhook non configurée).</p><p>En attendant, déposez votre dossier directement sur le Discord.</p>`
+          : `<p>Impossible de joindre la Préfecture. Réessayez dans quelques minutes ou déposez votre dossier directement sur le Discord.</p>` });
+    } finally {
+      btn.disabled = false; $('span', btn).textContent = 'Transmettre le dossier';
+    }
+  });
+
+  icons();
+  </script>
+</body>
+</html>
